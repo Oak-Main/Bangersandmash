@@ -71,6 +71,20 @@ check('pilot: every block is a direct child of the one container', (() => {
 check('pilot: no orphaned shot-slot spec captions', !/<figure data-shot="[^"]*"><figcaption>/.test(pilotHtml) && !/must match the card/i.test(pilotHtml));
 check('pilot: step figures survived cleanup', /<figure data-block="step"/.test(pilotHtml));
 
+// The lamb is pierced and stuffed, so ensure the serving route and recipe
+// structured data both give a measured fully cooked endpoint rather than a
+// time-only pink target. This does not assert that the recipe was kitchen tested.
+const lamb = await worker.fetch(new Request('https://bangersandmash.uk/recipe/roast-lamb-mint'));
+const lambHtml = await lamb.text();
+const lambScript = lambHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+const lambLd = lambScript ? JSON.parse(lambScript[1]) : null;
+const lambInstructions = (lambLd?.recipeInstructions ?? []).map(s => s.text).join(' ');
+const measured = /thickest part of the lamb holds at least 70°C for 2 minutes/;
+check('lamb route renders successfully', lamb.status === 200);
+check('lamb rendered method has the measured endpoint', measured.test(lambHtml.split('<script type="application/ld+json">').pop()));
+check('lamb Recipe JSON-LD has the same endpoint', measured.test(lambInstructions));
+check('lamb instructions do not promote a time-only pink endpoint', !/20 minutes per 500g for pink|roasted to a blush/i.test(lambHtml));
+
 const failed = checks.filter(([, ok]) => !ok).length;
 console.log(`\n${checks.length - failed}/${checks.length} passed`);
 process.exit(failed ? 1 : 0);
