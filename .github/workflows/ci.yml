@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ['claude/frontend-site-audit-g8zkms']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      # Gates worker/test.mjs, which carries the pierced lamb roast
+      # food-safety checks added in PR #11 alongside the existing Worker
+      # route, security-header and Recipe JSON-LD checks.
+      # The worker package has no dependencies and no lockfile, so no
+      # install step is required.
+      - name: Worker route and food-safety tests
+        run: npm test --prefix worker
