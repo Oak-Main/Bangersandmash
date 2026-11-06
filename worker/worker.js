@@ -329,6 +329,9 @@ export default {
     // otherwise answers with its homepage and a misleading success status.
     if (["/terms", "/affiliate-disclosure", "/advertising"].includes(p)) return notFound();
     return fetch("https://bangersandmash.pages.dev" + u.pathname + u.search, { method: req.method, headers: req.headers, redirect: "follow" }).then(function (res) {
+      // All supported document routes are handled above. Pages returns its SPA
+      // shell for unknown paths; keep real assets, never that misleading HTML 200.
+      if ((res.headers.get("content-type") || "").includes("text/html")) return notFound();
       const h2 = new Headers(res.headers);
       if (/^\/(images|videos|assets)\//.test(u.pathname)) h2.set("cache-control", "public, max-age=31536000, immutable");
       h2.set("x-content-type-options", "nosniff");

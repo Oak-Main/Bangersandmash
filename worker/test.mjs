@@ -1,6 +1,4 @@
-// Local verification for the bangersandmash-v2 Worker (offline: no origin
-// fetch — only Worker-rendered routes are exercised; unknown paths proxy to
-// bangersandmash.pages.dev and are not tested here).
+// Offline Worker route tests, with mocked Pages fallback responses.
 import worker from './worker.js';
 
 const checks = [];
@@ -117,6 +115,22 @@ const listing = await (await worker.fetch(new Request('https://bangersandmash.uk
 check('lamb listing does not show the former untested total', /roast-lamb-mint[\s\S]{0,1800}Varies total/.test(listing));
 const chicken = await (await worker.fetch(new Request('https://bangersandmash.uk/recipe/roast-chicken-bread-sauce'))).text();
 check('other recipe timing labels still show numeric times', /<dt>Cook<\/dt><dd>\d+ min<\/dd>/.test(chicken));
+
+// Exercise the origin fallback: missing documents must not inherit the Pages SPA 200.
+const originalFetch = globalThis.fetch;
+try {
+  globalThis.fetch = async () => new Response('<!doctype html><title>Legacy homepage</title>', { headers: { 'content-type': 'text/html' } });
+  for (const path of ['/audit-missing-page-20261105', '/unmapped-policy']) {
+    const missing = await worker.fetch(new Request('https://bangersandmash.uk' + path));
+    check(path + ' is a genuine 404', missing.status === 404 && (await missing.text()).includes('<h1>Not found</h1>'));
+  }
+  globalThis.fetch = async () => new Response('asset-bytes', { headers: { 'content-type': 'image/webp' } });
+  const asset = await worker.fetch(new Request('https://bangersandmash.uk/images/recipes/test.webp'));
+  check('Pages image bytes and status survive', asset.status === 200 && await asset.text() === 'asset-bytes');
+  check('Pages image cache headers survive', asset.headers.get('cache-control') === 'public, max-age=31536000, immutable');
+  globalThis.fetch = async () => new Response(null, { status: 404, headers: { 'content-type': 'application/javascript' } });
+  check('missing asset keeps its 404', (await worker.fetch(new Request('https://bangersandmash.uk/assets/missing.js'))).status === 404);
+} finally { globalThis.fetch = originalFetch; }
 
 const failed = checks.filter(([, ok]) => !ok).length;
 console.log(`\n${checks.length - failed}/${checks.length} passed`);
