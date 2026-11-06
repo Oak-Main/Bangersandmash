@@ -124,6 +124,8 @@ try {
     const missing = await worker.fetch(new Request('https://bangersandmash.uk' + path));
     check(path + ' is a genuine 404', missing.status === 404 && (await missing.text()).includes('<h1>Not found</h1>'));
   }
+  globalThis.fetch = async () => new Response('<!doctype html><title>Legacy homepage</title>', { headers: { 'content-type': 'Text/HTML; charset=utf-8' } });
+  check('mixed-case HTML fallback is a real 404', (await worker.fetch(new Request('https://bangersandmash.uk/unmapped-policy'))).status === 404);
   globalThis.fetch = async () => new Response('asset-bytes', { headers: { 'content-type': 'image/webp' } });
   const asset = await worker.fetch(new Request('https://bangersandmash.uk/images/recipes/test.webp'));
   check('Pages image bytes and status survive', asset.status === 200 && await asset.text() === 'asset-bytes');
