@@ -4,16 +4,8 @@ const R = D.recipes, CATS = D.cats;
 const ORIGIN = "https://bangersandmash.uk";
 const IMG = "/images/recipes/";
 const SITE = "Bangers & Mash";
-// GA4 measurement (2026-09-28, handoff item 6). Per-site property + the fleet
-// roll-up this site is designated for. Fired from a same-origin /ga4.js
-// bootstrap — no 'unsafe-inline' — with the gtag loader in <head>.
-const GA4_PER_SITE = "G-BHGK3T9M5L";
-const GA4_ROLLUP = "G-Z389F0DBM8W";
-const GA4_BOOTSTRAP =
-  "window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}" +
-  "gtag('js',new Date());" +
-  "gtag('config','" + GA4_PER_SITE + "');" +
-  "gtag('config','" + GA4_ROLLUP + "');";
+// Optional application measurement is paused pending reviewed visitor controls.
+const GA4_BOOTSTRAP = "/* Google Analytics is paused pending reviewed visitor controls. */";
 const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const bySlug = Object.fromEntries(R.map(x => [x.slug, x]));
 const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
@@ -110,8 +102,6 @@ function head(o) {
     '<meta name="theme-color" content="#1e3a2a">',
     '<link rel="manifest" href="/site.webmanifest">',
     FONTS,
-    '<script src="/ga4.js"></script>',
-    '<script async src="https://www.googletagmanager.com/gtag/js?id=' + GA4_PER_SITE + '"></script>',
     "<style>" + CSS + "</style>",
     o.jsonld ? '<script type="application/ld+json">' + JSON.stringify(o.jsonld).replace(/</g, "\\u003c") + "</" + "script>" : "",
     "</head><body>",
@@ -290,6 +280,21 @@ function pagePacket() {
 
 const RPC_PRINT_JS = "document.addEventListener('click',function(e){var t=e.target.closest('[data-action=\"print\"]');if(t){window.print();}});";
 
+function pagePrivacy() {
+  return head({ path: "/privacy", title: "Privacy and browser storage | " + SITE, desc: "Current technical practices and policy review status." })
+    + '<main id="main-content"><div class="wrap"><h1>Privacy and browser storage</h1>'
+    + '<p class="lede">Current technical facts. The complete legal notice remains under review.</p>'
+    + '<h2>Browsing and measurement</h2><p>You can read the recipe site without signing in. Application Google Analytics is paused pending reviewed visitor controls. Hosting and CDN telemetry require a separate inventory.</p>'
+    + '<h2>Third-party requests and storage</h2><p>The recipe pages load Google Fonts from Google hosts. A cf_zaraz_client cookie was observed. Its purpose and retention require verification. The previously listed serving-preference keys were not established by the source review.</p>'
+    + '<h2>Privacy requests</h2><p><a href="mailto:privacy@bangersandmash.uk">privacy@bangersandmash.uk</a> has an enabled mail-gateway route to the owner. Receipt and response timing were not tested.</p>'
+    + '<h2>Outstanding review</h2><p>The controller and service address, applicable legal requirements, vendor retention and rights-response process require owner and qualified legal review.</p>'
+    + '</div></main>' + foot;
+}
+function pageContact() {
+  return head({ path: "/contact", title: "Contact | " + SITE, desc: "Published editorial and privacy contacts." })
+    + '<main id="main-content"><div class="wrap"><h1>Contact</h1><p>General questions and corrections can be sent to <a href="mailto:hello@bangersandmash.uk">hello@bangersandmash.uk</a>. Privacy requests can be sent to <a href="mailto:privacy@bangersandmash.uk">privacy@bangersandmash.uk</a>.</p><p>Both addresses have enabled gateway routes to the owner. Response timing remains unverified.</p></div></main>' + foot;
+}
+
 export default {
   fetch(req) {
     const u = new URL(req.url);
@@ -300,10 +305,12 @@ export default {
       u.pathname = "/privacy";
       return Response.redirect(u.href, 302);
     }
+    if (p === "/privacy") return html(pagePrivacy());
+    if (p === "/contact") return html(pageContact());
     if (p === "/ga4.js") return new Response(GA4_BOOTSTRAP, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (p === "/robots.txt") return new Response("User-agent: *\nAllow: /\n\nSitemap: " + ORIGIN + "/sitemap.xml\n", { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (p === "/sitemap.xml") {
-      const urls = ["/", "/recipes", "/heritage"].concat(CATS.map(function (c) { return "/collections/" + c.id; })).concat(R.map(function (x) { return "/recipe/" + x.slug; }));
+      const urls = ["/", "/recipes", "/heritage", "/privacy", "/contact"].concat(CATS.map(function (c) { return "/collections/" + c.id; })).concat(R.map(function (x) { return "/recipe/" + x.slug; }));
       const body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + urls.map(function (x) { return "  <url><loc>" + ORIGIN + x + "</loc><lastmod>2026-08-20</lastmod></url>"; }).join("\n") + "\n</urlset>\n";
       return new Response(body, { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=3600" } });
@@ -320,7 +327,7 @@ export default {
     if (p.indexOf("/recipe/") === 0 || p.indexOf("/collections/") === 0) return notFound();
     // These paths have no notice in either application. The legacy SPA
     // otherwise answers with its homepage and a misleading success status.
-    if (["/terms", "/affiliate-disclosure", "/advertising", "/contact"].includes(p)) return notFound();
+    if (["/terms", "/affiliate-disclosure", "/advertising"].includes(p)) return notFound();
     return fetch("https://bangersandmash.pages.dev" + u.pathname + u.search, { method: req.method, headers: req.headers, redirect: "follow" }).then(function (res) {
       const h2 = new Headers(res.headers);
       if (/^\/(images|videos|assets)\//.test(u.pathname)) h2.set("cache-control", "public, max-age=31536000, immutable");
