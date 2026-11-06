@@ -124,7 +124,7 @@ function head(o) {
     "</ul></nav></div></header>",
   ].join("");
 }
-const foot = '<footer class="site"><div class="wrap"><p><strong>Bangers &amp; Mash</strong> &mdash; 92 English heritage recipes with metric quantities, timings and oven temperatures in Celsius, Fahrenheit, fan and gas.</p><p><a href="/recipes">All recipes</a> &middot; <a href="/heritage">Our heritage</a> &middot; <a href="/sitemap.xml">Sitemap</a></p><p>&copy; 2026 Bangersandmash.uk &mdash; Cooked slowly, served proudly.</p></div></footer></body></html>';
+const foot = '<footer class="site"><div class="wrap"><p><strong>Bangers &amp; Mash</strong> &mdash; 92 English heritage recipes with metric quantities, timings and oven temperatures in Celsius, Fahrenheit, fan and gas.</p><p><a href="/recipes">All recipes</a> &middot; <a href="/heritage">Our heritage</a> &middot; <a href="/privacy">Privacy &amp; cookies</a> &middot; <a href="/sitemap.xml">Sitemap</a></p><p>&copy; 2026 Bangersandmash.uk &mdash; Cooked slowly, served proudly.</p></div></footer></body></html>';
 
 function card(x) {
   return [
@@ -294,6 +294,12 @@ export default {
   fetch(req) {
     const u = new URL(req.url);
     let p = u.pathname.replace(/\/+$/, "") || "/";
+    // The Pages notice loads its assets relative to /privacy. A trailing
+    // slash resolves those assets under /privacy/ and leaves the page blank.
+    if ((p === "/privacy" && u.pathname !== p) || p === "/cookies") {
+      u.pathname = "/privacy";
+      return Response.redirect(u.href, 302);
+    }
     if (p === "/ga4.js") return new Response(GA4_BOOTSTRAP, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (p === "/robots.txt") return new Response("User-agent: *\nAllow: /\n\nSitemap: " + ORIGIN + "/sitemap.xml\n", { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (p === "/sitemap.xml") {
@@ -312,6 +318,9 @@ export default {
     if (p.indexOf("/recipe/") === 0) { const x = bySlug[p.slice(8)]; if (x) return html(pageRecipe(x)); }
     const notFound = function () { return html(head({ path: p, title: "Page not found | " + SITE, desc: "That page does not exist." }) + '<main id="main-content"><div class="wrap"><h1>Not found</h1><p class="lede">That page does not exist. <a href="/recipes">Browse all 92 recipes</a>.</p></div></main>' + foot, { status: 404 }); };
     if (p.indexOf("/recipe/") === 0 || p.indexOf("/collections/") === 0) return notFound();
+    // These paths have no notice in either application. The legacy SPA
+    // otherwise answers with its homepage and a misleading success status.
+    if (["/terms", "/affiliate-disclosure", "/advertising", "/contact"].includes(p)) return notFound();
     return fetch("https://bangersandmash.pages.dev" + u.pathname + u.search, { method: req.method, headers: req.headers, redirect: "follow" }).then(function (res) {
       const h2 = new Headers(res.headers);
       if (/^\/(images|videos|assets)\//.test(u.pathname)) h2.set("cache-control", "public, max-age=31536000, immutable");
@@ -321,4 +330,4 @@ export default {
     });
   }
 };
-
+

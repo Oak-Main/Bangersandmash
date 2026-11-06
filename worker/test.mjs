@@ -25,12 +25,32 @@ check('/ga4.js serves bootstrap with per-site ID', js.status === 200 && jsBody.i
 check('/ga4.js serves bootstrap with roll-up ID', jsBody.includes("gtag('config','G-Z389F0DBM8W')"));
 check('/ga4.js is javascript + cacheable', (js.headers.get('content-type') ?? '').includes('javascript') && /max-age=\d+/.test(js.headers.get('cache-control') ?? ''));
 
+check('home links to the combined notice', /<footer[\s\S]*?href="\/privacy"/.test(html));
+for (const path of ['/privacy/', '/cookies', '/cookies/']) {
+  const response = await worker.fetch(new Request('https://bangersandmash.uk' + path + '?via=footer'));
+  check(path + ' redirects to the existing combined notice and preserves the query',
+    response.status === 302 && response.headers.get('Location') === 'https://bangersandmash.uk/privacy?via=footer');
+}
+
+// A canonical notice and its root-relative assets must still reach Pages.
+const realFetch = globalThis.fetch;
+try {
+  globalThis.fetch = async (url) => new Response(String(url));
+  for (const path of ['/privacy', '/assets/notice.js']) {
+    const response = await worker.fetch(new Request('https://bangersandmash.uk' + path));
+    check(path + ' still reaches the existing fallback', response.status === 200 &&
+      await response.text() === 'https://bangersandmash.pages.dev' + path);
+  }
+} finally {
+  globalThis.fetch = realFetch;
+}
+
 const robots = await worker.fetch(new Request('https://bangersandmash.uk/robots.txt'));
 check('robots.txt unaffected', robots.status === 200 && (await robots.text()).includes('Sitemap:'));
 
 // These paths are rendered by the Worker, not the Pages fallback. The 404
 // must be an HTTP status, not a header named "status" on a 200 response.
-for (const path of ['/recipe/__missing__', '/collections/__missing__']) {
+for (const path of ['/recipe/__missing__', '/collections/__missing__', '/terms', '/terms/', '/affiliate-disclosure', '/affiliate-disclosure/', '/contact', '/advertising']) {
   const missing = await worker.fetch(new Request('https://bangersandmash.uk' + path));
   check(path + ' returns a real 404', missing.status === 404);
   check(path + ' preserves security headers without a status header',
