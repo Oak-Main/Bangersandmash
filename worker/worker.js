@@ -305,6 +305,9 @@ export default {
       u.pathname = "/privacy";
       return Response.redirect(u.href, 302);
     }
+    // /seasonal is indexed but was never built; send it to the closest live page
+    // in one hop instead of a 404 (away run 2026-11-09).
+    if (p === "/seasonal") { u.pathname = "/recipes"; return Response.redirect(u.href, 301); }
     if (p === "/privacy") return html(pagePrivacy());
     if (p === "/contact") return html(pageContact());
     if (p === "/ga4.js") return new Response(GA4_BOOTSTRAP, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
