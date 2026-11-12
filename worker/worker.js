@@ -114,7 +114,7 @@ function head(o) {
     "</ul></nav></div></header>",
   ].join("");
 }
-const foot = '<footer class="site"><div class="wrap"><p><strong>Bangers &amp; Mash</strong> &mdash; 92 English heritage recipes with metric quantities, timings and oven temperatures in Celsius, Fahrenheit, fan and gas.</p><p><a href="/recipes">All recipes</a> &middot; <a href="/heritage">Our heritage</a> &middot; <a href="/privacy">Privacy &amp; cookies</a> &middot; <a href="/sitemap.xml">Sitemap</a></p><p>&copy; 2026 Bangersandmash.uk &mdash; Cooked slowly, served proudly.</p></div></footer></body></html>';
+const foot = '<footer class="site"><div class="wrap"><p><strong>Bangers &amp; Mash</strong> &mdash; 92 English heritage recipes with metric quantities, timings and oven temperatures in Celsius, Fahrenheit, fan and gas.</p><p><a href="/recipes">All recipes</a> &middot; <a href="/heritage">Our heritage</a> &middot; <a href="/privacy">Privacy &amp; cookies</a> &middot; <a href="/terms">Terms of use</a> &middot; <a href="/sitemap.xml">Sitemap</a></p><p>&copy; 2026 Bangersandmash.uk &mdash; Cooked slowly, served proudly.</p></div></footer></body></html>';
 
 function card(x) {
   return [
@@ -290,6 +290,20 @@ function pagePrivacy() {
     + '<h2>Outstanding review</h2><p>The controller and service address, applicable legal requirements, vendor retention and rights-response process require owner and qualified legal review.</p>'
     + '</div></main>' + foot;
 }
+function pageTerms() {
+  return head({ path: "/terms", title: "Terms of Use | " + SITE, desc: "Terms of use for Bangers & Mash, operated by Oak and Main Developers LLC." })
+    + '<main id="main-content"><div class="wrap"><h1>Terms of Use</h1>'
+    + '<p class="lede">Effective November 12, 2026. These terms govern your use of Bangers &amp; Mash (https://bangersandmash.uk), operated by Oak and Main Developers LLC. By using the site you agree to them.</p>'
+    + '<h2>Information only</h2><p>Everything on this site is general information, not professional, legal, financial, medical or safety advice. Check anything important with the original source or a qualified professional before you rely on it.</p>'
+    + '<h2>Links to other sites</h2><p>We link to other sites for reference. We do not control them and are not responsible for their content or practices.</p>'
+    + '<h2>Use of the site</h2><p>You may read and share links to our pages for personal, non-commercial use. You may not copy substantial parts of the site, scrape it in a way that disrupts it, or use it unlawfully.</p>'
+    + '<h2>No warranty</h2><p>The site is provided "as is" without warranties of any kind, to the fullest extent permitted by law.</p>'
+    + '<h2>Limitation of liability</h2><p>To the fullest extent permitted by law, Oak and Main Developers LLC is not liable for any indirect, incidental or consequential damages arising from your use of the site.</p>'
+    + '<h2>Governing law</h2><p>These terms are governed by the laws of the State of California, without regard to its conflict-of-law rules.</p>'
+    + '<h2>Changes</h2><p>We may update these terms. The effective date above shows when they last changed.</p>'
+    + '<h2>Contact</h2><p>Oak and Main Developers LLC, 1223 Cleveland Ave, Suite 200, San Diego, CA 92103. Email: <a href="mailto:admin@oakandmain.dev">admin@oakandmain.dev</a>.</p>'
+    + '</div></main>' + foot;
+}
 function pageContact() {
   return head({ path: "/contact", title: "Contact | " + SITE, desc: "Published editorial and privacy contacts." })
     + '<main id="main-content"><div class="wrap"><h1>Contact</h1><p>General questions and corrections can be sent to <a href="mailto:hello@bangersandmash.uk">hello@bangersandmash.uk</a>. Privacy requests can be sent to <a href="mailto:privacy@bangersandmash.uk">privacy@bangersandmash.uk</a>.</p><p>Both addresses have enabled gateway routes to the owner. Response timing remains unverified.</p></div></main>' + foot;
@@ -309,11 +323,12 @@ export default {
     // in one hop instead of a 404 (away run 2026-11-09).
     if (p === "/seasonal") { u.pathname = "/recipes"; return Response.redirect(u.href, 301); }
     if (p === "/privacy") return html(pagePrivacy());
+    if (p === "/terms") return html(pageTerms());
     if (p === "/contact") return html(pageContact());
     if (p === "/ga4.js") return new Response(GA4_BOOTSTRAP, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (p === "/robots.txt") return new Response("User-agent: *\nAllow: /\n\nSitemap: " + ORIGIN + "/sitemap.xml\n", { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (p === "/sitemap.xml") {
-      const urls = ["/", "/recipes", "/heritage", "/privacy", "/contact"].concat(CATS.map(function (c) { return "/collections/" + c.id; })).concat(R.map(function (x) { return "/recipe/" + x.slug; }));
+      const urls = ["/", "/recipes", "/heritage", "/privacy", "/terms", "/contact"].concat(CATS.map(function (c) { return "/collections/" + c.id; })).concat(R.map(function (x) { return "/recipe/" + x.slug; }));
       const body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + urls.map(function (x) { return "  <url><loc>" + ORIGIN + x + "</loc><lastmod>2026-08-20</lastmod></url>"; }).join("\n") + "\n</urlset>\n";
       return new Response(body, { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=3600" } });
@@ -330,7 +345,7 @@ export default {
     if (p.indexOf("/recipe/") === 0 || p.indexOf("/collections/") === 0) return notFound();
     // These paths have no notice in either application. The legacy SPA
     // otherwise answers with its homepage and a misleading success status.
-    if (["/terms", "/affiliate-disclosure", "/advertising"].includes(p)) return notFound();
+    if (["/affiliate-disclosure", "/advertising"].includes(p)) return notFound();
     return fetch("https://bangersandmash.pages.dev" + u.pathname + u.search, { method: req.method, headers: req.headers, redirect: "follow" }).then(function (res) {
       // All supported document routes are handled above. Pages returns its SPA
       // shell for unknown paths; keep real assets, never that misleading HTML 200.
