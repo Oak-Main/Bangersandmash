@@ -50,12 +50,29 @@ for (const [path, heading] of [['/privacy', 'Privacy and browser storage'], ['/c
     response.status === 200 && body.includes('<h1>' + heading + '</h1>') && body.includes('privacy@bangersandmash.uk'));
   check(path + ' omits active GA4 configuration', !body.includes('gtag/js') && !body.includes("gtag('config'"));
 }
+// Terms of Use is server-rendered by the Worker, linked from the shared
+// footer and listed in the sitemap.
+for (const path of ['/terms', '/terms/']) {
+  const response = await worker.fetch(new Request('https://bangersandmash.uk' + path));
+  const body = await response.text();
+  check(path + ' server-renders the Terms of Use', response.status === 200 && body.includes('<h1>Terms of Use</h1>') &&
+    body.includes('<link rel="canonical" href="https://bangersandmash.uk/terms">'));
+  check(path + ' carries the approved information-only and links text',
+    body.includes('Everything on this site is general information, not professional, legal, financial, medical or safety advice.') &&
+    body.includes('We link to other sites for reference. We do not control them and are not responsible for their content or practices.'));
+  check(path + ' makes no affiliate claim', !/affiliate/i.test(body));
+  check(path + ' omits active GA4 configuration', !body.includes('gtag/js') && !body.includes("gtag('config'"));
+}
+check('footer links to the Terms of Use next to Privacy', /<footer[\s\S]*?href="\/privacy">[^<]*<\/a> &middot; <a href="\/terms">Terms of use<\/a>/.test(html));
+const sitemap = await (await worker.fetch(new Request('https://bangersandmash.uk/sitemap.xml'))).text();
+check('sitemap lists /terms', sitemap.includes('<loc>https://bangersandmash.uk/terms</loc>'));
+
 const robots = await worker.fetch(new Request('https://bangersandmash.uk/robots.txt'));
 check('robots.txt unaffected', robots.status === 200 && (await robots.text()).includes('Sitemap:'));
 
 // These paths are rendered by the Worker, not the Pages fallback. The 404
 // must be an HTTP status, not a header named "status" on a 200 response.
-for (const path of ['/recipe/__missing__', '/collections/__missing__', '/terms', '/terms/', '/affiliate-disclosure', '/affiliate-disclosure/', '/advertising']) {
+for (const path of ['/recipe/__missing__', '/collections/__missing__', '/affiliate-disclosure', '/affiliate-disclosure/', '/advertising']) {
   const missing = await worker.fetch(new Request('https://bangersandmash.uk' + path));
   check(path + ' returns a real 404', missing.status === 404);
   check(path + ' preserves security headers without a status header',
