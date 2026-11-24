@@ -60,19 +60,33 @@ for (const path of ['/terms', '/terms/']) {
   check(path + ' carries the approved information-only and links text',
     body.includes('Everything on this site is general information, not professional, legal, financial, medical or safety advice.') &&
     body.includes('We link to other sites for reference. We do not control them and are not responsible for their content or practices.'));
-  check(path + ' makes no affiliate claim', !/affiliate/i.test(body));
+  // The shared footer now carries the no-affiliate sentence; the terms text itself makes no affiliate claim.
+  check(path + ' makes no affiliate claim', !/affiliate/i.test(body.slice(body.indexOf('<main'), body.indexOf('<footer'))));
   check(path + ' omits active GA4 configuration', !body.includes('gtag/js') && !body.includes("gtag('config'"));
 }
 check('footer links to the Terms of Use next to Privacy', /<footer[\s\S]*?href="\/privacy">[^<]*<\/a> &middot; <a href="\/terms">Terms of use<\/a>/.test(html));
 const sitemap = await (await worker.fetch(new Request('https://bangersandmash.uk/sitemap.xml'))).text();
 check('sitemap lists /terms', sitemap.includes('<loc>https://bangersandmash.uk/terms</loc>'));
 
+// The no-affiliate sentence: on its own page and in the shared footer (2026-11-24).
+const NO_AFFILIATE = 'Bangers &amp; Mash carries no affiliate links and earns no commission.';
+for (const path of ['/affiliate-disclosure', '/affiliate-disclosure/']) {
+  const response = await worker.fetch(new Request('https://bangersandmash.uk' + path));
+  const body = await response.text();
+  check(path + ' server-renders the disclosure', response.status === 200 && body.includes('<h1>Affiliate Disclosure</h1>') &&
+    body.includes('<p class="lede">' + NO_AFFILIATE + '</p>') &&
+    body.includes('<link rel="canonical" href="https://bangersandmash.uk/affiliate-disclosure">'));
+  check(path + ' claims no commission and links no retailer', !/amazon\.|amzn\.|rel="[^"]*sponsored/i.test(body));
+}
+check('footer carries the no-affiliate sentence and links the disclosure', /<footer[\s\S]*?<a href="\/affiliate-disclosure">Affiliate disclosure<\/a>/.test(html) && html.includes('<p>' + NO_AFFILIATE + '</p>'));
+check('sitemap lists /affiliate-disclosure', sitemap.includes('<loc>https://bangersandmash.uk/affiliate-disclosure</loc>'));
+
 const robots = await worker.fetch(new Request('https://bangersandmash.uk/robots.txt'));
 check('robots.txt unaffected', robots.status === 200 && (await robots.text()).includes('Sitemap:'));
 
 // These paths are rendered by the Worker, not the Pages fallback. The 404
 // must be an HTTP status, not a header named "status" on a 200 response.
-for (const path of ['/recipe/__missing__', '/collections/__missing__', '/affiliate-disclosure', '/affiliate-disclosure/', '/advertising']) {
+for (const path of ['/recipe/__missing__', '/collections/__missing__', '/advertising']) {
   const missing = await worker.fetch(new Request('https://bangersandmash.uk' + path));
   check(path + ' returns a real 404', missing.status === 404);
   check(path + ' preserves security headers without a status header',
