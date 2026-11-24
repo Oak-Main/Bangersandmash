@@ -114,7 +114,7 @@ function head(o) {
     "</ul></nav></div></header>",
   ].join("");
 }
-const foot = '<footer class="site"><div class="wrap"><p><strong>Bangers &amp; Mash</strong> &mdash; 92 English heritage recipes with metric quantities, timings and oven temperatures in Celsius, Fahrenheit, fan and gas.</p><p><a href="/recipes">All recipes</a> &middot; <a href="/heritage">Our heritage</a> &middot; <a href="/privacy">Privacy &amp; cookies</a> &middot; <a href="/terms">Terms of use</a> &middot; <a href="/sitemap.xml">Sitemap</a></p><p>&copy; 2026 Bangersandmash.uk &mdash; Cooked slowly, served proudly.</p></div></footer></body></html>';
+const foot = '<footer class="site"><div class="wrap"><p><strong>Bangers &amp; Mash</strong> &mdash; 92 English heritage recipes with metric quantities, timings and oven temperatures in Celsius, Fahrenheit, fan and gas.</p><p><a href="/recipes">All recipes</a> &middot; <a href="/heritage">Our heritage</a> &middot; <a href="/privacy">Privacy &amp; cookies</a> &middot; <a href="/terms">Terms of use</a> &middot; <a href="/affiliate-disclosure">Affiliate disclosure</a> &middot; <a href="/sitemap.xml">Sitemap</a></p><p>Bangers &amp; Mash carries no affiliate links and earns no commission.</p><p>&copy; 2026 Bangersandmash.uk &mdash; Cooked slowly, served proudly.</p></div></footer></body></html>';
 
 function card(x) {
   return [
@@ -290,6 +290,13 @@ function pagePrivacy() {
     + '<h2>Outstanding review</h2><p>The controller and service address, applicable legal requirements, vendor retention and rights-response process require owner and qualified legal review.</p>'
     + '</div></main>' + foot;
 }
+function pageDisclosure() {
+  return head({ path: "/affiliate-disclosure", title: "Affiliate Disclosure | " + SITE, desc: "Bangers & Mash carries no affiliate links and earns no commission." })
+    + '<main id="main-content"><div class="wrap"><h1>Affiliate Disclosure</h1>'
+    + '<p class="lede">Bangers &amp; Mash carries no affiliate links and earns no commission.</p>'
+    + '<p>The links on this site are there for reference. None of them is paid for.</p>'
+    + '</div></main>' + foot;
+}
 function pageTerms() {
   return head({ path: "/terms", title: "Terms of Use | " + SITE, desc: "Terms of use for Bangers & Mash, operated by Oak and Main Developers LLC." })
     + '<main id="main-content"><div class="wrap"><h1>Terms of Use</h1>'
@@ -324,11 +331,12 @@ export default {
     if (p === "/seasonal") { u.pathname = "/recipes"; return Response.redirect(u.href, 301); }
     if (p === "/privacy") return html(pagePrivacy());
     if (p === "/terms") return html(pageTerms());
+    if (p === "/affiliate-disclosure") return html(pageDisclosure());
     if (p === "/contact") return html(pageContact());
     if (p === "/ga4.js") return new Response(GA4_BOOTSTRAP, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (p === "/robots.txt") return new Response("User-agent: *\nAllow: /\n\nSitemap: " + ORIGIN + "/sitemap.xml\n", { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (p === "/sitemap.xml") {
-      const urls = ["/", "/recipes", "/heritage", "/privacy", "/terms", "/contact"].concat(CATS.map(function (c) { return "/collections/" + c.id; })).concat(R.map(function (x) { return "/recipe/" + x.slug; }));
+      const urls = ["/", "/recipes", "/heritage", "/privacy", "/terms", "/affiliate-disclosure", "/contact"].concat(CATS.map(function (c) { return "/collections/" + c.id; })).concat(R.map(function (x) { return "/recipe/" + x.slug; }));
       const body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + urls.map(function (x) { return "  <url><loc>" + ORIGIN + x + "</loc><lastmod>2026-08-20</lastmod></url>"; }).join("\n") + "\n</urlset>\n";
       return new Response(body, { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=3600" } });
@@ -343,9 +351,9 @@ export default {
     if (p.indexOf("/recipe/") === 0) { const x = bySlug[p.slice(8)]; if (x) return html(pageRecipe(x)); }
     const notFound = function () { return html(head({ path: p, title: "Page not found | " + SITE, desc: "That page does not exist." }) + '<main id="main-content"><div class="wrap"><h1>Not found</h1><p class="lede">That page does not exist. <a href="/recipes">Browse all 92 recipes</a>.</p></div></main>' + foot, { status: 404 }); };
     if (p.indexOf("/recipe/") === 0 || p.indexOf("/collections/") === 0) return notFound();
-    // These paths have no notice in either application. The legacy SPA
+    // This path has no notice in either application. The legacy SPA
     // otherwise answers with its homepage and a misleading success status.
-    if (["/affiliate-disclosure", "/advertising"].includes(p)) return notFound();
+    if (p === "/advertising") return notFound();
     return fetch("https://bangersandmash.pages.dev" + u.pathname + u.search, { method: req.method, headers: req.headers, redirect: "follow" }).then(function (res) {
       // All supported document routes are handled above. Pages returns its SPA
       // shell for unknown paths; keep real assets, never that misleading HTML 200.
