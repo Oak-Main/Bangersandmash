@@ -161,15 +161,34 @@ const pateMethod = pateHtml.match(/<h2 class="sec">Method<\/h2><ol class="steps"
 const pateHtmlSteps = pateMethod ? [...pateMethod[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]) : [];
 const pateEndpoint = /centre of the thickest livers reaches 70°C and holds there for 2 minutes, checked with a clean thermometer/;
 const pateConflict = /stay pink|pink inside|left pink|sear 2[–-]3 minutes|USDA|74°C|165°F/i;
-const printCss = (pateHtml.match(/@media print\{[^@]*/g) ?? []).join(' ');
+const pateColourTarget = /pink|ros(y|é)|blush|\brare\b|bloody|juices run clear/i;
+// Every rule inside an @media print block must hide only the known page
+// chrome, so the method (and any ancestor of it) always prints.
+const printRules = [];
+for (const m of pateHtml.matchAll(/@media\s+print\s*\{/g)) {
+  let depth = 1, i = m.index + m[0].length, start = i;
+  while (i < pateHtml.length && depth) { if (pateHtml[i] === '{') depth++; else if (pateHtml[i] === '}') depth--; i++; }
+  for (const r of pateHtml.slice(start, i - 1).matchAll(/([^{}]+)\{([^{}]*)\}/g)) printRules.push([r[1].trim(), r[2]]);
+}
+const printMayHide = new Set(['header.site', 'footer.site', 'nav.main', '.chips', '[data-block="jump-bar"]']);
+const printHidden = printRules.filter(([, decl]) => /display\s*:\s*none|visibility\s*:\s*hidden/i.test(decl))
+  .flatMap(([sel]) => sel.split(',').map(s => s.trim()));
 check('pâté route renders at its existing URL', pate.status === 200 && pateLd?.mainEntityOfPage === pateUrl);
 check('pâté rendered method has the 70°C / 2 minute thermometer endpoint', pateHtmlSteps.some(s => pateEndpoint.test(s)));
 check('pâté Recipe JSON-LD has the same endpoint', pateLdSteps.some(s => pateEndpoint.test(s)));
 check('pâté rendered method and JSON-LD steps agree exactly', pateHtmlSteps.length === 6 &&
   JSON.stringify(pateHtmlSteps) === JSON.stringify(pateLdSteps));
-check('pâté print layout keeps the method visible', pateHtmlSteps.length > 0 && !/(^|[\s,{])(\.steps|\.cols|ol)[\s,{]/.test(printCss));
+check('pâté print CSS hides only page chrome, never the method', pateHtmlSteps.length === 6 && printRules.length > 0 &&
+  printHidden.length > 0 && printHidden.every(s => printMayHide.has(s)));
 check('pâté page carries no pink, sear-time or conflicting threshold wording', !pateConflict.test(pateHtml));
+check('pâté method and JSON-LD set no colour target', ![...pateHtmlSteps, ...pateLdSteps].some(s => pateColourTarget.test(s)));
 check('pâté method does not treat colour or a sear as proof of doneness', /Colour and a short sear are not proof that they are cooked\./.test(pateHtmlSteps.join(' ')));
+// The 15-minute cook time was set for the old 2–3 minute sear; no tested
+// replacement exists, so it shows as Varies and is left out of the JSON-LD.
+check('pâté page marks the untested cook and total time as variable', /<dt>Cook<\/dt><dd>Varies<\/dd>/.test(pateHtml) && /<dt>Total<\/dt><dd>Varies<\/dd>/.test(pateHtml));
+check('pâté structured data omits untested cook and total times', pateLd && !('cookTime' in pateLd) && !('totalTime' in pateLd) && pateLd.prepTime === 'PT20M');
+const soups = await (await worker.fetch(new Request('https://bangersandmash.uk/collections/soups'))).text();
+check('pâté listing does not show the former untested total', soups.match(/chicken-liver-pate[\s\S]{0,1800}?(Varies|\d+ min) total/)?.[1] === 'Varies');
 
 // Exercise the origin fallback: missing documents must not inherit the Pages SPA 200.
 const originalFetch = globalThis.fetch;
