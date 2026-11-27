@@ -147,6 +147,30 @@ check('lamb listing does not show the former untested total', /roast-lamb-mint[\
 const chicken = await (await worker.fetch(new Request('https://bangersandmash.uk/recipe/roast-chicken-bread-sauce'))).text();
 check('other recipe timing labels still show numeric times', /<dt>Cook<\/dt><dd>\d+ min<\/dd>/.test(chicken));
 
+// Chicken liver pâté: the method once told cooks the livers "must stay pink
+// inside" after a 2–3 minute sear. The rendered method, the print layout and
+// the Recipe JSON-LD must all give the measured FSA endpoint instead, and no
+// colour or sear wording may return beside it.
+const pateUrl = 'https://bangersandmash.uk/recipe/chicken-liver-pate';
+const pate = await worker.fetch(new Request(pateUrl));
+const pateHtml = await pate.text();
+const pateScript = pateHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+const pateLd = pateScript ? JSON.parse(pateScript[1]) : null;
+const pateLdSteps = (pateLd?.recipeInstructions ?? []).map(s => s.text);
+const pateMethod = pateHtml.match(/<h2 class="sec">Method<\/h2><ol class="steps">([\s\S]*?)<\/ol>/);
+const pateHtmlSteps = pateMethod ? [...pateMethod[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]) : [];
+const pateEndpoint = /centre of the thickest livers reaches 70°C and holds there for 2 minutes, checked with a clean thermometer/;
+const pateConflict = /stay pink|pink inside|left pink|sear 2[–-]3 minutes|USDA|74°C|165°F/i;
+const printCss = (pateHtml.match(/@media print\{[^@]*/g) ?? []).join(' ');
+check('pâté route renders at its existing URL', pate.status === 200 && pateLd?.mainEntityOfPage === pateUrl);
+check('pâté rendered method has the 70°C / 2 minute thermometer endpoint', pateHtmlSteps.some(s => pateEndpoint.test(s)));
+check('pâté Recipe JSON-LD has the same endpoint', pateLdSteps.some(s => pateEndpoint.test(s)));
+check('pâté rendered method and JSON-LD steps agree exactly', pateHtmlSteps.length === 6 &&
+  JSON.stringify(pateHtmlSteps) === JSON.stringify(pateLdSteps));
+check('pâté print layout keeps the method visible', pateHtmlSteps.length > 0 && !/(^|[\s,{])(\.steps|\.cols|ol)[\s,{]/.test(printCss));
+check('pâté page carries no pink, sear-time or conflicting threshold wording', !pateConflict.test(pateHtml));
+check('pâté method does not treat colour or a sear as proof of doneness', /Colour and a short sear are not proof that they are cooked\./.test(pateHtmlSteps.join(' ')));
+
 // Exercise the origin fallback: missing documents must not inherit the Pages SPA 200.
 const originalFetch = globalThis.fetch;
 try {
