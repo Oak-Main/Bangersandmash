@@ -204,6 +204,9 @@ const liverMethod = liverHtml.match(/<h2 class="sec">Method<\/h2><ol class="step
 const liverHtmlSteps = liverMethod ? [...liverMethod[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]) : [];
 const liverEndpoint = /centre of the thickest slices reaches 70°C and holds there for 2 minutes, checked with a clean thermometer/;
 const liverConflict = /pink inside|90 seconds|per side|flashed in the pan/i;
+// A sear given a duration ("sear 2 minutes", "90 seconds, then sear") would be a
+// time-based doneness cue; only the thermometer endpoint may set doneness.
+const liverTimedSear = /\bsear(?:ed|ing|s)?\b[^.;]{0,80}?\b\d+\s*(?:seconds?|secs?|minutes?|mins?)\b|\b\d+\s*(?:seconds?|secs?|minutes?|mins?)\b[^.;]{0,80}?\bsear(?:ed|ing|s)?\b/i;
 const liverPrintRules = [];
 for (const m of liverHtml.matchAll(/@media\s+print\s*\{/g)) {
   let depth = 1, i = m.index + m[0].length, start = i;
@@ -221,6 +224,8 @@ check('liver print CSS hides only page chrome, never the method', liverHtmlSteps
   liverPrintHidden.length > 0 && liverPrintHidden.every(s => printMayHide.has(s)));
 check('liver page carries no pink or sear-time wording', !liverConflict.test(liverHtml));
 check('liver method and JSON-LD set no colour target', ![...liverHtmlSteps, ...liverLdSteps].some(s => pateColourTarget.test(s)));
+check('liver method and JSON-LD give no timed sear', ![...liverHtmlSteps, ...liverLdSteps].some(s => liverTimedSear.test(s)));
+check('liver blurb uses the approved pan-fried wording', /<p class="lede">Calves’ liver pan-fried — never stewed —/.test(liverHtml) && liverLd?.description?.startsWith('Calves’ liver pan-fried — never stewed —'));
 check('liver method does not treat colour or a sear as proof of doneness', /Colour and a short sear are not proof that it is cooked\./.test(liverHtmlSteps.join(' ')));
 // The 25-minute cook time included the old 90-second sear; no tested
 // replacement exists, so it shows as Varies and is left out of the JSON-LD.
