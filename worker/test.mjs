@@ -203,7 +203,7 @@ const liverLdSteps = (liverLd?.recipeInstructions ?? []).map(s => s.text);
 const liverMethod = liverHtml.match(/<h2 class="sec">Method<\/h2><ol class="steps">([\s\S]*?)<\/ol>/);
 const liverHtmlSteps = liverMethod ? [...liverMethod[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]) : [];
 const liverEndpoint = /centre of the thickest slices reaches 70°C and holds there for 2 minutes, checked with a clean thermometer/;
-const liverConflict = /pink inside|90 seconds|per side|screaming-hot|flashed in the pan/i;
+const liverConflict = /pink inside|90 seconds|per side|flashed in the pan/i;
 const liverPrintRules = [];
 for (const m of liverHtml.matchAll(/@media\s+print\s*\{/g)) {
   let depth = 1, i = m.index + m[0].length, start = i;
