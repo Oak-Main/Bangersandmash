@@ -190,6 +190,45 @@ check('pâté structured data omits untested cook and total times', pateLd && !(
 const soups = await (await worker.fetch(new Request('https://bangersandmash.uk/collections/soups'))).text();
 check('pâté listing does not show the former untested total', soups.match(/chicken-liver-pate[\s\S]{0,1800}?(Varies|\d+ min) total/)?.[1] === 'Varies');
 
+// Liver, bacon & onions: the method once said to sear the liver "for 90
+// seconds per side — pink inside is correct". The rendered method, the print
+// layout and the Recipe JSON-LD must all give the FSA 70°C / 2 minute
+// thermometer endpoint instead, with no colour or sear-time target beside it.
+const liverUrl = 'https://bangersandmash.uk/recipe/liver-onions-bacon';
+const liver = await worker.fetch(new Request(liverUrl));
+const liverHtml = await liver.text();
+const liverScript = liverHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+const liverLd = liverScript ? JSON.parse(liverScript[1]) : null;
+const liverLdSteps = (liverLd?.recipeInstructions ?? []).map(s => s.text);
+const liverMethod = liverHtml.match(/<h2 class="sec">Method<\/h2><ol class="steps">([\s\S]*?)<\/ol>/);
+const liverHtmlSteps = liverMethod ? [...liverMethod[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]) : [];
+const liverEndpoint = /centre of the thickest slices reaches 70°C and holds there for 2 minutes, checked with a clean thermometer/;
+const liverConflict = /pink inside|90 seconds|per side|screaming-hot|flashed in the pan/i;
+const liverPrintRules = [];
+for (const m of liverHtml.matchAll(/@media\s+print\s*\{/g)) {
+  let depth = 1, i = m.index + m[0].length, start = i;
+  while (i < liverHtml.length && depth) { if (liverHtml[i] === '{') depth++; else if (liverHtml[i] === '}') depth--; i++; }
+  for (const r of liverHtml.slice(start, i - 1).matchAll(/([^{}]+)\{([^{}]*)\}/g)) liverPrintRules.push([r[1].trim(), r[2]]);
+}
+const liverPrintHidden = liverPrintRules.filter(([, decl]) => /display\s*:\s*none|visibility\s*:\s*hidden/i.test(decl))
+  .flatMap(([sel]) => sel.split(',').map(s => s.trim()));
+check('liver route renders at its existing URL', liver.status === 200 && liverLd?.mainEntityOfPage === liverUrl);
+check('liver rendered method has the 70°C / 2 minute thermometer endpoint', liverHtmlSteps.some(s => liverEndpoint.test(s)));
+check('liver Recipe JSON-LD has the same endpoint', liverLdSteps.some(s => liverEndpoint.test(s)));
+check('liver rendered method and JSON-LD steps agree exactly', liverHtmlSteps.length === 4 &&
+  JSON.stringify(liverHtmlSteps) === JSON.stringify(liverLdSteps));
+check('liver print CSS hides only page chrome, never the method', liverHtmlSteps.length === 4 && liverPrintRules.length > 0 &&
+  liverPrintHidden.length > 0 && liverPrintHidden.every(s => printMayHide.has(s)));
+check('liver page carries no pink or sear-time wording', !liverConflict.test(liverHtml));
+check('liver method and JSON-LD set no colour target', ![...liverHtmlSteps, ...liverLdSteps].some(s => pateColourTarget.test(s)));
+check('liver method does not treat colour or a sear as proof of doneness', /Colour and a short sear are not proof that it is cooked\./.test(liverHtmlSteps.join(' ')));
+// The 25-minute cook time included the old 90-second sear; no tested
+// replacement exists, so it shows as Varies and is left out of the JSON-LD.
+check('liver page marks the untested cook and total time as variable', /<dt>Cook<\/dt><dd>Varies<\/dd>/.test(liverHtml) && /<dt>Total<\/dt><dd>Varies<\/dd>/.test(liverHtml));
+check('liver structured data omits untested cook and total times', liverLd && !('cookTime' in liverLd) && !('totalTime' in liverLd) && liverLd.prepTime === 'PT10M');
+const pubs = await (await worker.fetch(new Request('https://bangersandmash.uk/collections/pub'))).text();
+check('liver listing does not show the former untested total', pubs.match(/liver-onions-bacon[\s\S]{0,1800}?(Varies|\d+ min) total/)?.[1] === 'Varies');
+
 // Exercise the origin fallback: missing documents must not inherit the Pages SPA 200.
 const originalFetch = globalThis.fetch;
 try {
